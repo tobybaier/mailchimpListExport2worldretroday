@@ -34,25 +34,25 @@ public class Main {
                     String[] lineEntries = line.split(cvsSplitBy);
 
                     WRDEntry entry = new WRDEntry();
-                    entry.setId(lineEntries[24]);
+                    entry.setId(lineEntries[22]);
                     entry.setModerators(lineEntries[1] + " " + lineEntries[2]);
                     entry.setTitle(lineEntries[3]);
                     entry.setCity(lineEntries[4]);
                     entry.setUrl(lineEntries[5]);
-                    String latitude = lineEntries[7];
+                    String latitude = lineEntries[13];
                     if (latitude.startsWith("'")) {
                         latitude = latitude.substring(1);
                     }
                     entry.setLatitude(latitude);
 
-                    String longitude = lineEntries[8];
+                    String longitude = lineEntries[14];
                     if (longitude.startsWith("'")) {
                         longitude = longitude.substring(1);
                     }
                     entry.setLongitude(longitude);
-                    entry.setUtcOffset(lineEntries[17]);
-                    entry.setTimezone(lineEntries[18]);
-                    entry.setCountry(lineEntries[20]);
+                    entry.setUtcOffset(lineEntries[15]);
+                    entry.setTimezone(lineEntries[17]);
+                    entry.setCountry(lineEntries[18]);
 
                     entries.add(entry);
                 } else {
