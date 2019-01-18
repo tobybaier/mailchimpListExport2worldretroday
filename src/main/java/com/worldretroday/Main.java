@@ -34,25 +34,16 @@ public class Main {
                     String[] lineEntries = line.split(cvsSplitBy);
 
                     WRDEntry entry = new WRDEntry();
-                    entry.setId(lineEntries[24]);
-                    entry.setModerators(lineEntries[1] + " " + lineEntries[2]);
-                    entry.setTitle(lineEntries[3]);
-                    entry.setCity(lineEntries[4]);
-                    entry.setUrl(lineEntries[5]);
-                    String latitude = lineEntries[7];
-                    if (latitude.startsWith("'")) {
-                        latitude = latitude.substring(1);
-                    }
-                    entry.setLatitude(latitude);
-
-                    String longitude = lineEntries[8];
-                    if (longitude.startsWith("'")) {
-                        longitude = longitude.substring(1);
-                    }
-                    entry.setLongitude(longitude);
-                    entry.setUtcOffset(lineEntries[17]);
-                    entry.setTimezone(lineEntries[18]);
-                    entry.setCountry(lineEntries[20]);
+                    entry.setId(cleanUpString(lineEntries[24]));
+                    entry.setModerators(cleanUpString(lineEntries[1] + " " + cleanUpString(lineEntries[2])));
+                    entry.setTitle(cleanUpString(lineEntries[3]));
+                    entry.setCity(cleanUpString(lineEntries[4]));
+                    entry.setUrl(cleanUpString(lineEntries[5]));
+                    entry.setLatitude(cleanUpString(lineEntries[7]));
+                    entry.setLongitude(cleanUpString(lineEntries[8]));
+                    entry.setUtcOffset(cleanUpString(lineEntries[17]));
+                    entry.setTimezone(cleanUpString(lineEntries[18]));
+                    entry.setCountry(cleanUpString(lineEntries[20]));
 
                     entries.add(entry);
                 } else {
@@ -75,6 +66,12 @@ public class Main {
         return entries;
     }
 
+    private static String cleanUpString(String string) {
+        string =  string.replaceAll("\"","");
+        string =  string.replaceAll("'","");
+        return string;
+    }
+
 
     private static void writeJSON(ArrayList<WRDEntry> entries) {
         int counter = 0;
@@ -86,11 +83,11 @@ public class Main {
                     counter++;
                     FileWriter fileWriter = new FileWriter(file);
                     fileWriter.write("{\n");
-                    fileWriter.write("  \"title\": " + entry.getTitle() + ",\n");
-                    fileWriter.write("  \"url\": \"" + entry.getUrl() + " \",\n");
+                    fileWriter.write("  \"title\": \"" + entry.getTitle() + "\",\n");
+                    fileWriter.write("  \"url\": \"" + entry.getUrl() + "\",\n");
                     fileWriter.write("  \"moderators\": [\"" + entry.getModerators() + "\"],\n");
                     fileWriter.write("  \"location\": { \n");
-                    fileWriter.write("    \"city\": " + entry.getCity() + " ,\n");
+                    fileWriter.write("    \"city\": \"" + entry.getCity() + "\" ,\n");
                     fileWriter.write("    \"country\": \"" + entry.getCountry() + "\",\n");
                     fileWriter.write("    \"coordinates\": { \n");
                     fileWriter.write("      \"latitude\": " + entry.getLatitude() + ",\n");
