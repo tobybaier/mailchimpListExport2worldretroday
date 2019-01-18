@@ -77,11 +77,13 @@ public class Main {
 
 
     private static void writeJSON(ArrayList<WRDEntry> entries) {
+        int counter = 0;
         for (WRDEntry entry : entries
         ) {
             File file = new File(OUTPUT_NAME_PREFIX + entry.getId() + ".json");
             try {
                 if (file.createNewFile()) {
+                    counter++;
                     FileWriter fileWriter = new FileWriter(file);
                     fileWriter.write("{\n");
                     fileWriter.write("  \"title\": " + entry.getTitle() + ",\n");
@@ -101,8 +103,8 @@ public class Main {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
         }
+        System.out.println(counter + " new files generated.");
     }
 
 }
