@@ -1,66 +1,69 @@
 package com.worldretroday;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.IOUtils;
+
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Iterator;
 
 public class Main {
 
     private static final String OUTPUT_NAME_PREFIX = "wrd2019-";
-    private static String INPUT_FILE = "subscribed_members_export.csv";
 
     public static void main(String[] args) {
-        if (args.length == 1) {
-            INPUT_FILE = args[0];
+        try {
+            readJson();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        ArrayList<WRDEntry> entries = readCSV();
+        ArrayList<WRDEntry> entries = null;
+        try {
+            entries = readJson();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         writeJSON(entries);
     }
 
-    private static ArrayList<WRDEntry> readCSV() {
-
-        BufferedReader reader = null;
-        String line;
-        String cvsSplitBy = ",";
+    private static ArrayList<WRDEntry> readJson() throws IOException {
 
         ArrayList<WRDEntry> entries = new ArrayList<WRDEntry>();
+        URL url = new URL("https://us19.api.mailchimp.com/3.0/lists/3b39ee2d1a/members?count=100");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setDoOutput(true);
 
-        try {
+        String authStringEnc = Base64.getEncoder().encodeToString(getAuthentication().getBytes());
+        connection.setRequestProperty("Authorization", "Basic " + authStringEnc);
+        connection.setRequestMethod("GET");
+        int responseCode = connection.getResponseCode();
+        if (responseCode == 200) {
 
-            reader = new BufferedReader(new FileReader(INPUT_FILE));
-            boolean skippedHeadings = false; // don't need those
-            while ((line = reader.readLine()) != null) {
-                if (skippedHeadings) {
-                    // use comma as separator
-                    String[] lineEntries = line.split(cvsSplitBy);
-
-                    WRDEntry entry = new WRDEntry();
-                    entry.setId(cleanUpString(lineEntries[24]));
-                    entry.setModerators(cleanUpString(lineEntries[1] + " " + cleanUpString(lineEntries[2])));
-                    entry.setTitle(cleanUpString(lineEntries[3]));
-                    entry.setCity(cleanUpString(lineEntries[4]));
-                    entry.setUrl(cleanUpString(lineEntries[5]));
-                    entry.setLatitude(cleanUpString(lineEntries[7]));
-                    entry.setLongitude(cleanUpString(lineEntries[8]));
-                    entry.setUtcOffset(cleanUpString(lineEntries[17]));
-                    entry.setTimezone(cleanUpString(lineEntries[18]));
-                    entry.setCountry(cleanUpString(lineEntries[20]));
-
-                    entries.add(entry);
-                } else {
-                    skippedHeadings = true;
-                }
-
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            byte[] jsonData = IOUtils.toByteArray(connection.getInputStream());
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(jsonData);
+            JsonNode membersNode = rootNode.path("members");
+            Iterator<JsonNode> elements = membersNode.elements();
+            while(elements.hasNext()){
+                WRDEntry entry = new WRDEntry();
+                JsonNode member = elements.next();
+                JsonNode mergeFields = member.path("merge_fields");
+                entry.setId(cleanUpString(member.path("unique_email_id").textValue()));
+                entry.setModerators(cleanUpString(mergeFields.path("FNAME").textValue() + " " + cleanUpString(mergeFields.path("LNAME").textValue())));
+                entry.setTitle(cleanUpString(mergeFields.path("MMERGE6").textValue()));
+                JsonNode addressNode = mergeFields.path("ADDRESS");
+                entry.setCity(cleanUpString(addressNode.path("city").textValue()));
+                entry.setUrl(cleanUpString(mergeFields.path("MMERGE4").textValue()));
+                entry.setLatitude(cleanUpString(mergeFields.path("MMERGE7").textValue()));
+                entry.setLongitude(cleanUpString(mergeFields.path("MMERGE8").textValue()));
+                entry.setUtcOffset(cleanUpString(""));
+                entry.setTimezone(cleanUpString(member.path("location").path("timezone").textValue()));
+                entry.setCountry(cleanUpString(addressNode.path("country").textValue()));
+                entries.add(entry);
             }
         }
         return entries;
@@ -75,33 +78,51 @@ public class Main {
 
     private static void writeJSON(ArrayList<WRDEntry> entries) {
         int counter = 0;
-        for (WRDEntry entry : entries
-        ) {
+        int newFileCounter = 0;
+        for (WRDEntry entry : entries) {
             File file = new File(OUTPUT_NAME_PREFIX + entry.getId() + ".json");
             try {
                 if (file.createNewFile()) {
-                    counter++;
-                    FileWriter fileWriter = new FileWriter(file);
-                    fileWriter.write("{\n");
-                    fileWriter.write("  \"title\": \"" + entry.getTitle() + "\",\n");
-                    fileWriter.write("  \"url\": \"" + entry.getUrl() + "\",\n");
-                    fileWriter.write("  \"moderators\": [\"" + entry.getModerators() + "\"],\n");
-                    fileWriter.write("  \"location\": { \n");
-                    fileWriter.write("    \"city\": \"" + entry.getCity() + "\" ,\n");
-                    fileWriter.write("    \"country\": \"" + entry.getCountry() + "\",\n");
-                    fileWriter.write("    \"coordinates\": { \n");
-                    fileWriter.write("      \"latitude\": " + entry.getLatitude() + ",\n");
-                    fileWriter.write("      \"longitude\": " + entry.getLongitude() + "},\n");
-                    fileWriter.write("  \"utcOffset\": " + entry.getUtcOffset() + " ,\n");
-                    fileWriter.write("  \"timezone\": \"" + entry.getTimezone() + " \"}}\n");
-                    fileWriter.flush();
-                    fileWriter.close();
+                    newFileCounter++;
                 }
+                counter++;
+                FileWriter fileWriter = new FileWriter(file);
+                fileWriter.write("{\n");
+                fileWriter.write("  \"title\": \"" + entry.getTitle() + "\",\n");
+                fileWriter.write("  \"url\": \"" + entry.getUrl() + "\",\n");
+                fileWriter.write("  \"moderators\": [\"" + entry.getModerators() + "\"],\n");
+                fileWriter.write("  \"location\": { \n");
+                fileWriter.write("    \"city\": \"" + entry.getCity() + "\" ,\n");
+                fileWriter.write("    \"country\": \"" + entry.getCountry() + "\",\n");
+                fileWriter.write("    \"coordinates\": { \n");
+                fileWriter.write("      \"latitude\": " + entry.getLatitude() + ",\n");
+                fileWriter.write("      \"longitude\": " + entry.getLongitude() + "},\n");
+                fileWriter.write("  \"utcOffset\": " + entry.getUtcOffset() + " ,\n");
+                fileWriter.write("  \"timezone\": \"" + entry.getTimezone() + "\"}}\n");
+                fileWriter.flush();
+                fileWriter.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        System.out.println(counter + " new files generated.");
+        System.out.println(counter + " files generated, " + newFileCounter + " of them new.");
+    }
+
+    private static String getAuthentication() {
+        String everything = "";
+        try (BufferedReader br = new BufferedReader(new FileReader("authentication.txt"))) {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+
+            while (line != null) {
+                sb.append(line);
+                line = br.readLine();
+            }
+            everything = sb.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return everything;
     }
 
 }
